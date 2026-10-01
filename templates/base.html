@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Emin Neşat Gürses">
+    <meta name="description" content="Kelebek Sınav Sistemi - Sınav karma ve oturma planı yönetimi">
+    <title>Kelebek Sınav Sistemi - {% block title %}{% endblock %}</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <style>
+        :root {
+            --sidebar-width: 220px;
+            --primary-color: #1a5276;
+            --sidebar-bg: #1a1a2e;
+            --sidebar-hover: #16213e;
+            --sidebar-active: #0f3460;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f6fa;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            min-height: 100vh;
+            background: var(--sidebar-bg);
+            color: #fff;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+        }
+        
+        .sidebar-brand {
+            padding: 20px 16px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-brand h4 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .sidebar-brand small {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.75rem;
+        }
+        
+        .sidebar-nav {
+            padding: 12px 0;
+        }
+        
+        .sidebar-nav .nav-link {
+            color: rgba(255,255,255,0.7);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9rem;
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .sidebar-nav .nav-link:hover {
+            background: var(--sidebar-hover);
+            color: #fff;
+        }
+        
+        .sidebar-nav .nav-link.active {
+            background: var(--sidebar-active);
+            color: #fff;
+            border-left-color: #3498db;
+        }
+        
+        .sidebar-nav .nav-link i {
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 24px;
+            min-height: 100vh;
+        }
+        
+        /* Toast */
+        .toast-container {
+            z-index: 1100;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 16px;
+            }
+            
+            .mobile-toggle {
+                display: flex !important;
+            }
+        }
+        
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1100;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        
+        .card-header {
+            border-radius: 10px 10px 0 0 !important;
+            font-weight: 500;
+        }
+        
+        /* Tables */
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table th {
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .table td {
+            vertical-align: middle;
+            font-size: 0.9rem;
+        }
+        
+        /* Buttons */
+        .btn {
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 8px 16px;
+        }
+        
+        .btn-sm {
+            padding: 5px 12px;
+            font-size: 0.8rem;
+        }
+        
+        /* Footer */
+        .app-footer {
+            margin-left: var(--sidebar-width);
+            padding: 16px 24px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #999;
+            border-top: 1px solid #eee;
+        }
+        
+        @media (max-width: 768px) {
+            .app-footer {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <h4><i class="bi bi-diagram-3"></i> Kelebek</h4>
+        <small>Sınav Sistemi</small>
+    </div>
+    <nav class="sidebar-nav nav flex-column">
+        <a class="nav-link {% if active_page == 'index' %}active{% endif %}" href="{{ url_for('index') }}">
+            <i class="bi bi-house-door"></i> Ana Sayfa
+        </a>
+        <a class="nav-link {% if active_page == 'students' %}active{% endif %}" href="{{ url_for('students_page') }}">
+            <i class="bi bi-people"></i> Öğrenciler
+        </a>
+        <a class="nav-link {% if active_page == 'classes' %}active{% endif %}" href="{{ url_for('classes_page') }}">
+            <i class="bi bi-building"></i> Sınıflar
+        </a>
+        <a class="nav-link {% if active_page == 'exams' %}active{% endif %}" href="{{ url_for('exams_page') }}">
+            <i class="bi bi-calendar-check"></i> Sınavlar
+        </a>
+        <a class="nav-link {% if active_page == 'upload' %}active{% endif %}" href="{{ url_for('upload_page') }}">
+            <i class="bi bi-upload"></i> Excel Yükle
+        </a>
+        <a class="nav-link {% if active_page == 'mix_editor' %}active{% endif %}" href="/mix-editor">
+            <i class="bi bi-shuffle"></i> Karma Düzenle
+        </a>
+    </nav>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    {% block content %}{% endblock %}
+</div>
+
+<!-- Footer -->
+<div class="app-footer">
+    <i class="bi bi-code-slash"></i> Geliştirici: <strong>Emin Neşat Gürses</strong> &middot; Kelebek Sınav Sistemi &copy; 2026
+</div>
+
+<!-- Mobile Toggle -->
+<button class="btn btn-primary mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('show')">
+    <i class="bi bi-list"></i>
+</button>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-bg-${type} border-0 show`;
+        toast.role = 'alert';
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

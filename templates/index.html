@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Ana Sayfa{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="bi bi-info-circle"></i> Hoş Geldiniz</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">
+                    Kelebek Sınav Sistemi ile sınavlarınızı kolayca yönetin, 
+                    öğrencileri karma düzenine göre yerleştirin ve PDF raporları oluşturun.
+                </p>
+                
+                <div class="row g-3">
+                    <div class="col-md-6 col-lg-3">
+                        <a href="{{ url_for('students_page') }}" class="text-decoration-none">
+                            <div class="card h-100 text-center p-3">
+                                <i class="bi bi-people text-primary" style="font-size: 2.5rem;"></i>
+                                <h6 class="mt-2 mb-1">Öğrenci Yönetimi</h6>
+                                <small class="text-muted">Ekle, düzenle, sil</small>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <a href="{{ url_for('classes_page') }}" class="text-decoration-none">
+                            <div class="card h-100 text-center p-3">
+                                <i class="bi bi-building text-success" style="font-size: 2.5rem;"></i>
+                                <h6 class="mt-2 mb-1">Sınıf Yönetimi</h6>
+                                <small class="text-muted">Sınıf tanımları</small>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <a href="{{ url_for('exams_page') }}" class="text-decoration-none">
+                            <div class="card h-100 text-center p-3">
+                                <i class="bi bi-calendar-check text-warning" style="font-size: 2.5rem;"></i>
+                                <h6 class="mt-2 mb-1">Sınav Yönetimi</h6>
+                                <small class="text-muted">Sınav oluştur</small>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <a href="{{ url_for('upload_page') }}" class="text-decoration-none">
+                            <div class="card h-100 text-center p-3">
+                                <i class="bi bi-file-excel text-danger" style="font-size: 2.5rem;"></i>
+                                <h6 class="mt-2 mb-1">Excel Yükle</h6>
+                                <small class="text-muted">Toplu veri</small>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

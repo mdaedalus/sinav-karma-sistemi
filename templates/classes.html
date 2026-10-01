@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Sınıf Yönetimi{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h3 class="mb-0"><i class="bi bi-building"></i> Sınıf Listesi</h3>
+    <div class="d-flex gap-2">
+        <button class="btn btn-danger btn-sm" id="deleteAllClassesBtn">
+            <i class="bi bi-trash3"></i> Tümünü Sil
+        </button>
+        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#classModal" onclick="openAddClassModal()">
+            <i class="bi bi-plus-lg"></i> Yeni Sınıf
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="classesTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Sınıf</th>
+                        <th>Düzey</th>
+                        <th>Kapasite</th>
+                        <th class="text-end">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Sınıf Modal -->
+<div class="modal fade" id="classModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">Sınıf Bilgileri</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="classId">
+                <div class="mb-3">
+                    <label class="form-label">Sınıf Adı</label>
+                    <input type="text" id="className" class="form-control" placeholder="Örn: 9A">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Düzey</label>
+                    <input type="number" id="classLevel" class="form-control" placeholder="Örn: 9">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Kapasite</label>
+                    <input type="number" id="classCapacity" class="form-control" placeholder="Örn: 30">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                <button type="button" class="btn btn-primary" id="saveClassBtn">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const API_CLASSES = '/api/classes';
+    let classes = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadClasses();
+        document.getElementById('saveClassBtn').addEventListener('click', saveClass);
+        document.getElementById('deleteAllClassesBtn').addEventListener('click', deleteAllClasses);
+    });
+
+    async function loadClasses() {
+        try {
+            const res = await fetch(API_CLASSES);
+            classes = await res.json();
+            renderClasses();
+        } catch (e) {
+            showToast('Sınıflar yüklenemedi!', 'danger');
+        }
+    }
+
+    function renderClasses() {
+        const tbody = document.querySelector('#classesTable tbody');
+        if (!classes.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Henüz sınıf yok</td></tr>';
+            return;
+        }
+        tbody.innerHTML = classes.map(c => `
+            <tr>
+                <td>${c.id}</td>
+                <td><strong>${c.sinif}</strong></td>
+                <td>${c.duzey}</td>
+                <td>${c.kapasite}</td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editClass(${c.id})">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteClass(${c.id})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function openAddClassModal() {
+        document.getElementById('classId').value = '';
+        document.getElementById('className').value = '';
+        document.getElementById('classLevel').value = '';
+        document.getElementById('classCapacity').value = '';
+        document.querySelector('#classModal .modal-title').textContent = 'Yeni Sınıf';
+    }
+
+    function editClass(id) {
+        const c = classes.find(x => x.id === id);
+        if (!c) return;
+        document.getElementById('classId').value = c.id;
+        document.getElementById('className').value = c.sinif;
+        document.getElementById('classLevel').value = c.duzey;
+        document.getElementById('classCapacity').value = c.kapasite;
+        document.querySelector('#classModal .modal-title').textContent = 'Sınıf Düzenle';
+        new bootstrap.Modal(document.getElementById('classModal')).show();
+    }
+
+    async function saveClass() {
+        const id = document.getElementById('classId').value;
+        const data = {
+            sinif: document.getElementById('className').value.trim(),
+            duzey: document.getElementById('classLevel').value,
+            kapasite: document.getElementById('classCapacity').value
+        };
+        if (!data.sinif) {
+            showToast('Sınıf adı zorunludur!', 'warning');
+            return;
+        }
+        try {
+            const url = id ? `${API_CLASSES}/${id}` : API_CLASSES;
+            const method = id ? 'PUT' : 'POST';
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) throw new Error();
+            showToast(id ? 'Sınıf güncellendi' : 'Sınıf eklendi');
+            bootstrap.Modal.getInstance(document.getElementById('classModal')).hide();
+            loadClasses();
+        } catch (e) {
+            showToast('Kaydetme başarısız!', 'danger');
+        }
+    }
+
+    async function deleteClass(id) {
+        if (!confirm('Bu sınıfı silmek istediğinize emin misiniz?')) return;
+        try {
+            await fetch(`${API_CLASSES}/${id}`, { method: 'DELETE' });
+            showToast('Sınıf silindi');
+            loadClasses();
+        } catch (e) {
+            showToast('Silme başarısız!', 'danger');
+        }
+    }
+
+    async function deleteAllClasses() {
+        if (!confirm('TÜM sınıfları silmek istediğinize emin misiniz?')) return;
+        try {
+            await fetch(API_CLASSES, { method: 'DELETE' });
+            showToast('Tüm sınıflar silindi');
+            loadClasses();
+        } catch (e) {
+            showToast('Silme başarısız!', 'danger');
+        }
+    }
+</script>
+{% endblock %}

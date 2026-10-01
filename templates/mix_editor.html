@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+
+{% block title %}Kelebek Karma Düzenleyici{% endblock %}
+
+{% block content %}
+<style>
+    .mix-editor-container {
+        display: flex;
+        gap: 20px;
+        min-height: calc(100vh - 200px);
+    }
+    
+    /* Sol Menü - Salonlar */
+    .rooms-sidebar {
+        width: 260px;
+        flex-shrink: 0;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        overflow: hidden;
+    }
+    
+    .rooms-header {
+        background: linear-gradient(135deg, #1a5276, #2e86c1);
+        color: white;
+        padding: 14px 16px;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    
+    .rooms-list {
+        max-height: calc(100vh - 320px);
+        overflow-y: auto;
+        padding: 8px;
+    }
+    
+    .room-card {
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 6px;
+        background: #f8f9fa;
+    }
+    
+    .room-card:hover {
+        background: #e9ecef;
+        border-color: #28a745;
+    }
+    
+    .room-card.active {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+        border-color: #28a745;
+    }
+    
+    .room-card.active .text-muted {
+        color: rgba(255,255,255,0.8) !important;
+    }
+    
+    /* Sağ Alan */
+    .seating-area {
+        flex: 1;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Kontrol Paneli */
+    .control-panel {
+        background: #f8f9fa;
+        padding: 12px 16px;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .control-group {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .control-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .control-item label {
+        margin: 0;
+        font-size: 0.8rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    
+    .control-item input, .control-item select {
+        width: auto;
+        padding: 4px 8px;
+        font-size: 0.8rem;
+    }
+    
+    /* Sıra Düzeni Izgarası */
+    .seat-grid {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+        background: #f0f2f5;
+        min-height: 500px;
+        overflow-x: auto;
+    }
+    
+    /* Öğretmen Masası */
+    .teacher-desk {
+        background: linear-gradient(135deg, #e67e22, #d35400);
+        color: white;
+        text-align: center;
+        padding: 12px 8px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        min-height: 80px;
+    }
+    
+    .teacher-desk i {
+        font-size: 1.5rem;
+    }
+    
+    .teacher-desk span {
+        font-size: 0.75rem;
+    }
+    
+    /* Izgara düzeni */
+    .seat-grid.with-teacher {
+        grid-template-columns: 110px repeat(var(--seat-cols, 4), minmax(120px, 1fr));
+    }
+    
+    .seat-grid.without-teacher {
+        grid-template-columns: repeat(var(--seat-cols, 4), minmax(120px, 1fr));
+    }
+    
+    /* Sıra Kartları */
+    .seat-card {
+        background: white;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        padding: 8px;
+        text-align: center;
+        cursor: move;
+        transition: all 0.2s;
+        position: relative;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        min-height: 70px;
+    }
+    
+    .seat-card.dragging {
+        opacity: 0.5;
+    }
+    
+    .seat-card.drag-over {
+        border-color: #28a745;
+        background-color: #d4edda;
+    }
+    
+    .seat-card.selected {
+        border-color: #007bff;
+        background-color: #cfe2ff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.2);
+    }
+    
+    .seat-number {
+        position: absolute;
+        top: 4px;
+        left: 6px;
+        font-size: 9px;
+        font-weight: 700;
+        color: #aaa;
+    }
+    
+    .student-name {
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 2px;
+        word-break: break-word;
+        line-height: 1.2;
+    }
+    
+    .student-class {
+        font-size: 0.65rem;
+        color: #666;
+    }
+    
+    .student-gender {
+        font-size: 0.65rem;
+        margin-top: 2px;
+    }
+    
+    .male { color: #007bff; }
+    .female { color: #dc3545; }
+    
+    .student-exam {
+        font-size: 0.6rem;
+        color: #28a745;
+        margin-top: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Boş Koltuk */
+    .empty-seat {
+        background: #e9ecef;
+        border-color: #dee2e6;
+        color: #6c757d;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 70px;
+    }
+    
+    .empty-seat:hover {
+        background: #d4edda;
+        border-color: #28a745;
+    }
+    
+    .drag-handle {
+        cursor: grab;
+        position: absolute;
+        top: 4px;
+        right: 6px;
+        font-size: 10px;
+        color: #ccc;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .mix-editor-container {
+            flex-direction: column;
+        }
+        .rooms-sidebar {
+            width: 100%;
+        }
+        .control-group {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .control-item {
+            justify-content: space-between;
+        }
+    }
+    
+    @media print {
+        .no-print, .rooms-sidebar, .control-panel {
+            display: none !important;
+        }
+        .seat-grid {
+            break-inside: avoid;
+        }
+        .seat-card {
+            break-inside: avoid;
+        }
+    }
+    
+    /* PDF butonları */
+    .pdf-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        padding: 12px;
+        background: white;
+        border-bottom: 2px solid #28a745;
+    }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<div class="mix-editor-container">
+    <!-- Sol Menü: Salonlar -->
+    <div class="rooms-sidebar no-print">
+        <div class="rooms-header">
+            <i class="bi bi-building"></i> Salonlar
+            <span class="badge bg-light text-dark float-end" id="roomCount">0</span>
+        </div>
+        <div class="rooms-list" id="roomsList">
+            <div class="text-center text-muted py-3">Yükleniyor...</div>
+        </div>
+    </div>
+
+    <!-- Sağ Alan: Oturma Planı -->
+    <div class="seating-area">
+        <!-- Kontrol Paneli -->
+        <div class="control-panel no-print">
+            <div class="control-group">
+                <div class="control-item">
+                    <label><i class="bi bi-layout-three-columns"></i> Düzen:</label>
+                    <select id="layoutType" class="form-select form-select-sm" style="width: 120px;" onchange="changeLayoutType()">
+                        <option value="single">Tekli Sıra</option>
+                        <option value="paired">Çiftli Sıra</option>
+                        <option value="classroom">Sınıf Düzeni</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label><i class="bi bi-grid-3x3"></i> Sıra:</label>
+                    <input type="number" id="rowCount" class="form-control form-control-sm" style="width: 60px;" value="8" min="1" max="20" onchange="updateSeatLayout()">
+                </div>
+                <div class="control-item">
+                    <label><i class="bi bi-columns"></i> Koltuk:</label>
+                    <input type="number" id="seatsPerRow" class="form-control form-control-sm" style="width: 60px;" value="4" min="1" max="10" onchange="updateSeatLayout()">
+                </div>
+                <div class="control-item">
+                    <label><i class="bi bi-arrow-repeat"></i> Yön:</label>
+                    <select id="seatOrder" class="form-select form-select-sm" style="width: 90px;" onchange="updateSeatLayout()">
+                        <option value="sequential">Sıralı</option>
+                        <option value="snake">Yılan</option>
+                        <option value="reverse">Ters</option>
+                    </select>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="control-item form-check">
+                    <input type="checkbox" class="form-check-input" id="showTeacherDesk" checked onchange="toggleTeacherDesk()">
+                    <label class="form-check-label">Öğretmen Masası</label>
+                </div>
+                <div class="layout-preview">
+                    <span id="layoutPreview"></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- PDF Butonları -->
+        <div class="pdf-buttons no-print">
+            <button class="btn btn-sm btn-danger" onclick="generateStudentPDF()">
+                <i class="bi bi-file-pdf"></i> Öğrenci PDF
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="generateAdminPDF()">
+                <i class="bi bi-file-pdf"></i> İdareci PDF
+            </button>
+            <button class="btn btn-sm btn-info" onclick="generateTeacherPDF()">
+                <i class="bi bi-file-pdf"></i> Öğretmen PDF
+            </button>
+            <button class="btn btn-sm btn-warning" onclick="generateSupervisorPDFFromScreen()">
+                <i class="bi bi-file-pdf"></i> Gözetmen PDF
+            </button>
+            <button class="btn btn-sm btn-success" onclick="generateRoomPDFFromScreen()">
+                <i class="bi bi-file-pdf"></i> Bütün Salonlar PDF
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="exportToJSON()">
+                <i class="bi bi-filetype-json"></i> JSON Dışa Aktar
+            </button>
+            <button class="btn btn-sm btn-info" onclick="document.getElementById('jsonImport').click()">
+                <i class="bi bi-filetype-json"></i> JSON İçe Aktar
+            </button>
+            <input type="file" id="jsonImport" accept=".json" style="display:none;" onchange="importFromJSON(event)">
+        </div>
+        
+        <!-- Oturma Planı Başlığı -->
+        <div class="p-3 bg-success text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-easel"></i> 
+                <span id="currentRoomName">Salon Seçin</span>
+                <span id="studentCount" class="badge bg-light text-dark ms-2">0 öğrenci</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-warning" onclick="autoArrangeSeats()">
+                    <i class="bi bi-shuffle"></i> Aynı Sınıfları Ayır
+                </button>
+                <button class="btn btn-sm btn-light" onclick="window.location.href='/exams'">
+                    <i class="bi bi-arrow-left"></i> Geri Dön
+                </button>
+            </div>
+        </div>
+        
+        <!-- Sıra Izgarası -->
+        <div style="flex: 1; overflow: auto; padding: 12px;">
+            <div id="seatGrid" class="seat-grid" style="display: none;"></div>
+            <div id="noRoomSelected" class="text-center text-muted py-5">
+                <i class="bi bi-building fs-1"></i>
+                <p class="mt-3">Lütfen sol menüden bir salon seçin</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Öğrenci Detay Modalı -->
+<div class="modal fade" id="studentDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-person-badge"></i> Öğrenci Detayı</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="studentDetailBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                <button type="button" class="btn btn-danger" onclick="moveStudentToEmpty()">
+                    <i class="bi bi-arrow-right-circle"></i> Boş Koltuğa Taşı
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gözetmen PDF için Grup Seçim Modalı -->
+<div class="modal fade" id="groupSelectModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="bi bi-calendar-event"></i> Sınav Grubu Seçin</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="groupSelectBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary" id="confirmGroupSelectBtn">Oluştur</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/mix_editor.js') }}"></script>
+{% endblock %}

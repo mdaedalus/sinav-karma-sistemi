@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Sınav Yönetimi{% endblock %}
+
+{% block content %}
+<style>
+    .class-checkbox-group {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 10px;
+    }
+    .class-checkbox-item {
+        margin-bottom: 8px;
+    }
+    .table-actions i {
+        font-size: 1.1rem;
+        cursor: pointer;
+        margin: 0 5px;
+    }
+    .dynamic-pdf-area {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 15px;
+    }
+    @media print {
+        .no-print, .modal, .toast-container {
+            display: none !important;
+        }
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h3 class="mb-0"><i class="bi bi-calendar-check"></i> Sınav Yönetimi</h3>
+    <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#examModal" onclick="openAddExamModal()">
+            <i class="bi bi-plus-lg"></i> Yeni Sınav
+        </button>
+        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#uploadExamModal">
+            <i class="bi bi-file-excel"></i> Excel'den Yükle
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAllExams()">
+            <i class="bi bi-trash3"></i> Tümünü Sil
+        </button>
+        <a href="/api/exams/template" class="btn btn-info btn-sm" download>
+            <i class="bi bi-download"></i> Şablon
+        </a>
+        <button class="btn btn-secondary btn-sm" onclick="refreshExams()">
+            <i class="bi bi-arrow-repeat"></i> Yenile
+        </button>
+    </div>
+</div>
+
+<!-- Karma Butonları -->
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <button class="btn btn-success" onclick="openMixModal()">
+        <i class="bi bi-shuffle"></i> Kelebek Karma Başlat
+    </button>
+    <button class="btn btn-info" onclick="openMixModal(true)">
+        <i class="bi bi-eye"></i> Karma Simülasyonu
+    </button>
+</div>
+
+<!-- Sınav Listesi -->
+<div class="card">
+    <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="bi bi-table"></i> Sınav Listesi</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="examsTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Sınav Adı</th>
+                        <th>Tarih</th>
+                        <th>Saat</th>
+                        <th>Katılan Sınıflar</th>
+                        <th>Oluşturma</th>
+                        <th class="text-end">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="7" class="text-center py-4">Yükleniyor...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ============ MODALLAR ============ -->
+
+<!-- Sınav Ekleme/Düzenleme Modal -->
+<div class="modal fade" id="examModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="examModalTitle">Yeni Sınav Oluştur</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="examId">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Sınav Adı <span class="text-danger">*</span></label>
+                        <input type="text" id="examName" class="form-control" placeholder="Örn: Matematik Sınavı">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Sınav Tarihi <span class="text-danger">*</span></label>
+                        <input type="date" id="examDate" class="form-control">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Ders Saati <span class="text-danger">*</span></label>
+                        <select id="examHour" class="form-select">
+                            <option value="">Seçiniz</option>
+                            <option value="1">1. Ders (08:30-09:10)</option>
+                            <option value="2">2. Ders (09:20-10:00)</option>
+                            <option value="3">3. Ders (10:10-10:50)</option>
+                            <option value="4">4. Ders (11:00-11:40)</option>
+                            <option value="5">5. Ders (12:00-12:40)</option>
+                            <option value="6">6. Ders (12:50-13:30)</option>
+                            <option value="7">7. Ders (13:40-14:20)</option>
+                            <option value="8">8. Ders (14:30-15:10)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Sınava Girecek Sınıflar <span class="text-danger">*</span></label>
+                        <div id="classCheckboxList" class="class-checkbox-group">
+                            <div class="text-muted">Sınıflar yükleniyor...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Dinamik PDF Alanları -->
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        <div class="dynamic-pdf-area">
+                            <label class="form-label">
+                                <i class="bi bi-file-pdf text-danger"></i> Sınıf Düzeylerine Göre PDF'ler (İsteğe Bağlı)
+                            </label>
+                            <div id="dynamicPdfAreas">
+                                <div class="text-muted text-center py-2">Sınıf seçtiğinizde burada PDF ekleme alanları görünecektir.</div>
+                            </div>
+                            <small class="text-muted">Her sınıf düzeyi için ayrı PDF dosyası ekleyebilirsiniz</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary" id="saveExamBtn">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Excel Sınav Yükleme Modalı -->
+<div class="modal fade" id="uploadExamModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-file-excel"></i> Excel'den Sınav Yükle</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-info-circle"></i> Excel Formatı</h6>
+                    <p>Excel dosyanız aşağıdaki sütunları içermelidir:</p>
+                    <table class="table table-sm table-bordered bg-white">
+                        <thead class="table-secondary">
+                            <tr><th>Ders</th><th>Tarih</th><th>Saat</th><th>Düzey</th><th>Sınıflar</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Matematik</td><td>2026-05-09</td><td>2</td><td>9</td><td>A,B,C</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="mb-0 small text-muted">
+                        <i class="bi bi-lightbulb"></i> İpucu: "A,B,C" yazarsanız sistem otomatik olarak 
+                        "9A,9B,9C" şeklinde sınıfları oluşturur.
+                    </p>
+                </div>
+                
+                <form id="uploadExamForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Excel Dosyası (.xlsx, .xls)</label>
+                        <input type="file" class="form-control" name="excel_file" accept=".xlsx,.xls" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-cloud-upload"></i> Sınavları Yükle
+                    </button>
+                </form>
+                
+                <div id="uploadExamResult" class="mt-3" style="display:none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                <a href="/api/exams/template" class="btn btn-info" download>
+                    <i class="bi bi-download"></i> Şablon İndir
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Karma Modal -->
+<div class="modal fade" id="mixModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-diagram-3"></i> Kelebek Karma Sistemi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-calendar-event"></i> Aynı Tarih ve Saatteki Sınavlar Birlikte Karılacak</h6>
+                    <div id="examGroupsList"></div>
+                </div>
+                
+                <div class="alert alert-secondary">
+                    <h6><i class="bi bi-building"></i> Salon Kapasiteleri</h6>
+                    <div id="roomCapacities"></div>
+                </div>
+                
+                <h6 class="mt-3"><i class="bi bi-sliders2"></i> Karma Seçenekleri</h6>
+                <div class="row" id="mixOptionsContainer"></div>
+                
+                <div id="mixResults" style="display:none;">
+                    <hr>
+                    <div id="mixResultsContent"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                <button type="button" class="btn btn-warning" id="simulateBtn" onclick="simulateMix()" style="display:none;">
+                    <i class="bi bi-eye"></i> Simülasyon Yap
+                </button>
+                <button type="button" class="btn btn-success" id="executeMixBtn" onclick="executeMix()" style="display:none;">
+                    <i class="bi bi-shuffle"></i> Karmayı Başlat
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grup Seçim Modal -->
+<div class="modal fade" id="groupSelectModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title">Gözetmen Raporu İçin Sınav Grubu Seçin</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="groupSelectBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary" id="confirmGroupSelectBtn">Oluştur</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/exams.js') }}"></script>
+{% endblock %}
